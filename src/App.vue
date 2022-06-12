@@ -263,6 +263,9 @@ export default {
           break;
 
         case CHALLENGE_CAN_GO_BACK:
+          history.pushState({state: 1}, "Fake record 1", "?fake=1")
+          history.pushState({state: 1}, "Fake record 2", "?date=1")
+
           this.intent = "Попробуй нажать кнопку 'Назад'"
           var previousState = 0
 
@@ -278,6 +281,9 @@ export default {
             previousState = event.state
           })
           
+          history.pushState({state: 1}, "Fake record 3", "?test=1")
+          history.pushState({state: 1}, "Fake record 4", "?popup=1")
+
           break;
 
         case CHALLENGE_COOKIE:
