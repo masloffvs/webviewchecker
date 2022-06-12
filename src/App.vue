@@ -53,6 +53,7 @@ const CHALLENGE_ORIENTATION = "challenge-orientation"
 const CHALLENGE_FILE_CHOOSE = "challenge-file-choose"
 const CHALLENGE_CAMERA_VIEW = "challenge-camera-view"
 const CHALLENGE_MIC_VIEW = "challenge-mic-view"
+const CHALLENGE_CAN_GO_BACK = "challenge-back"
 const CHALLENGE_COOKIE = "challenge-cookie"
 const CHALLENGE_DONE = "challenge-done"
 
@@ -70,7 +71,30 @@ export default {
   },
   computed: {
     description() {
-      return ""
+      if (this.challenge == CHALLENGE_REDIRECT) {
+        return "Для того чтобы не застрять на этом этапе, проверьте, передаете ли вы информацию из AppsFlyer в функцию webview.loadUrl()"
+      
+      } else if (this.challenge == CHALLENGE_ORIENTATION) {
+        return "Теперь попробуйте перевернуть устройство, не забудьте включить автоповорот. А если вдруг тест начнется снова, то вы неправильно настроили манифест своего приложения"
+
+      } else if (this.challenge == CHALLENGE_FILE_CHOOSE) {
+        return "Вам нужно будет выбрать файл с вашего телефона. В случае если после нажатия на кнопку ничего не происходит, возможно вы забыли настроить выборщик файлов в своем WebView."
+
+      } else if (this.challenge == CHALLENGE_CAMERA_VIEW) {
+        return "На протяжении нескольких секунд мы запросим у вас доступ к камере, Вас снимать не будем :). Нам лишь нужно убедиться, что камера в вашем WebView полностью исправна. Если после 10 секунд ничего не происходит — вы забыли настроить права к камере в вашем WebView."
+
+      } else if (this.challenge == CHALLENGE_MIC_VIEW) {
+        return "Мы сделаем тоже самое, что и с камерой, только уже с микрофоном"
+
+      } else if (this.challenge == CHALLENGE_COOKIE) {
+       return "Обязательно нужно попробовать сохранить куки"
+
+      } else if (this.challenge == CHALLENGE_CAN_GO_BACK) {
+       return "Если после нажатия кнопки \"Назад\" приложение вылетело - вы не настроили коллбек на эту кнопку"
+
+      } else {
+        return ""
+      }
     },
     challengeType() {
       if (this.challenge == CHALLENGE_REDIRECT) {
@@ -88,11 +112,14 @@ export default {
       } else if (this.challenge == CHALLENGE_MIC_VIEW) {
         return "Доступ к микрофону"
 
+      } else if (this.challenge == CHALLENGE_CAN_GO_BACK) {
+       return "Навигация"
+
       } else if (this.challenge == CHALLENGE_COOKIE) {
        return "Cookie"
 
       } else {
-        return "Проверка"
+        return ""
       }
     }
   },
@@ -109,6 +136,10 @@ export default {
           if ((location.search == "" || location.search == "?")) {
             this.fail = true
             this.intent = "Не пришли данные от AppsFlyer при открытии ссылки"
+
+            setTimeout(() => {
+              location.href = EXTERNAL_HOST + "/" + location.search
+            }, 3000);
 
           } else if (location.pathname == "/" || location.pathname == "") {
             location.href = "/redirect" + location.search
@@ -222,8 +253,8 @@ export default {
                 const mediaRecorder = new MediaRecorder(stream);
                 mediaRecorder.start();
 
-                location.hash = "cookies"
-                this.challenge = CHALLENGE_COOKIE
+                location.hash = "canGoBack"
+                this.challenge = CHALLENGE_CAN_GO_BACK
                 this.nextChallenge()
               });
           }, 2000);
@@ -231,9 +262,32 @@ export default {
 
           break;
 
+        case CHALLENGE_CAN_GO_BACK:
+          this.intent = "Попробуй нажать кнопку 'Назад'"
+          var previousState = 0
+
+          window.addEventListener('popstate', (event) => {
+            if (event.state > previousState) {
+              this.intent = "Совершена навигация вперед, а не назад"
+              this.fail = true
+            } else {
+              location.hash = "cookies"
+              this.challenge = CHALLENGE_COOKIE
+              this.nextChallenge()
+            }
+            previousState = event.state
+          })
+          
+          break;
+
         case CHALLENGE_COOKIE:
           if (navigator.cookieEnabled) {
             this.intent = "Cookie успешно включены"
+
+            setTimeout(() => {
+              this.challenge = CHALLENGE_DONE
+              this.nextChallenge()
+            }, 2000);
           } else {
             this.intent = "Cookie не включены"
             this.fail = true
@@ -268,6 +322,8 @@ export default {
         this.challenge = CHALLENGE_CAMERA_VIEW
       } else if (location.hash == "#microphoneView") {
         this.challenge = CHALLENGE_MIC_VIEW
+      } else if (location.hash == "#canGoBack") {
+        this.challenge = CHALLENGE_CAN_GO_BACK
       } else if (location.pathname == '/externalRedirect' && location.hash == "#cookies") {
         this.challenge = CHALLENGE_COOKIE
       }
