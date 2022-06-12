@@ -13,7 +13,8 @@
           </div>
         </div>
 
-         <div class="text-center p-5">
+        <transition name="slide-fade" mode="out-in">
+          <div class="text-center p-5">
             <h2 class="text-base text-indigo-600 font-semibold tracking-wide uppercase">
               {{ challengeType }}
             </h2>
@@ -23,7 +24,8 @@
             <p class="mt-4 max-w-2xl text-xl text-gray-500 lg:mx-auto">
               {{ description }}
             </p>
-        </div>
+          </div>
+        </transition>
 
         <div v-show="challenge == 'challenge-file-choose'">
           <input type="file" id="file-selector" ref="fileSelector">
@@ -44,7 +46,8 @@
 </style>
 
 <script>
-const EXTERNAL_HOST = ""
+const EXTERNAL_HOST = require("./conf").REDIRECT_URL
+
 const CHALLENGE_REDIRECT = "challenge-redirect"
 const CHALLENGE_ORIENTATION = "challenge-orientation"
 const CHALLENGE_FILE_CHOOSE = "challenge-file-choose"
@@ -61,7 +64,8 @@ export default {
       challengeSubState: 0,
       intent: "",
       fail: false,
-      currentScreenOrientation: null
+      currentScreenOrientation: null,
+      lock: false,
     }
   },
   computed: {
@@ -98,13 +102,17 @@ export default {
     },
 
     nextChallenge() {
+      if (this.lock) return 
+
       switch (this.challenge) {
         case CHALLENGE_REDIRECT:
           if ((location.search == "" || location.search == "?")) {
             this.fail = true
             this.intent = "Не пришли данные от AppsFlyer при открытии ссылки"
+
           } else if (location.pathname == "/" || location.pathname == "") {
             location.href = "/redirect" + location.search
+
           } else if (location.pathname == "/redirect") {
             this.fail = true
             this.intent = "Произошел редирект, но внутри сайта. В таком случае показывать WebView не надо"
@@ -112,11 +120,13 @@ export default {
             if (location.pathname != '/externalRedirect') {
               setTimeout(() => {
                 location.href = EXTERNAL_HOST + "/externalRedirect" + location.search
-              }, 4000);
+              }, 3000);
             }
+
           } else if (location.pathname == '/externalRedirect') {
             this.challenge = CHALLENGE_ORIENTATION
             this.nextChallenge()
+
           }
 
           break;
@@ -183,8 +193,9 @@ export default {
             /* Stream it to video element */
             navigator.mediaDevices.getUserMedia(constraints)
               .catch(() => {
-                this.intent = "Разрешение не получено :("
+                this.intent = "Разрешение не получено"
                 this.fail = true
+                this.lock = true
               })
               .then((stream) => {
                 video.srcObject = stream;
@@ -192,7 +203,6 @@ export default {
                 location.hash = "microphoneView"
                 this.challenge = CHALLENGE_MIC_VIEW
                 this.nextChallenge()
-
               });
           }, 2000);
 
@@ -204,8 +214,9 @@ export default {
           setTimeout(() => {
             navigator.mediaDevices.getUserMedia({ audio: true })
               .catch(() => {
-                this.intent = "Разрешение не получено :("
+                this.intent = "Разрешение не получено"
                 this.fail = true
+                this.lock = true
               })
               .then(stream => {
                 const mediaRecorder = new MediaRecorder(stream);
@@ -221,7 +232,13 @@ export default {
           break;
 
         case CHALLENGE_COOKIE:
-          this.intent = "Проверим куки"
+          if (navigator.cookieEnabled) {
+            this.intent = "Cookie успешно включены"
+          } else {
+            this.intent = "Cookie не включены"
+            this.fail = true
+          }
+
           document.cookie = "username=John Doe; expires=Thu, 18 Dec 2030 12:00:00 UTC";
 
           break;
