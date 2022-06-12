@@ -176,7 +176,7 @@ export default {
             var constraints = {
               audio: false,
               video: {
-              facingMode: facingMode
+                facingMode: facingMode
               }
             };
 
@@ -186,14 +186,14 @@ export default {
                 this.intent = "Разрешение не получено :("
                 this.fail = true
               })
-              .then(function success(stream) {
-              video.srcObject = stream;
-              
-              location.hash = "microphoneView"
-              this.challenge = CHALLENGE_MIC_VIEW
-              this.nextChallenge()
+              .then((stream) => {
+                video.srcObject = stream;
+                
+                location.hash = "microphoneView"
+                this.challenge = CHALLENGE_MIC_VIEW
+                this.nextChallenge()
 
-            });
+              });
           }, 2000);
 
           break;
