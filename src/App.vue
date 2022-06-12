@@ -280,6 +280,8 @@ export default {
               location.hash = "cookies"
               this.challenge = CHALLENGE_COOKIE
               this.nextChallenge()
+
+              history.deleteAll()
             }
             previousState = event.state
           })
