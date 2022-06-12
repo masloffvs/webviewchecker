@@ -13,16 +13,16 @@
           </div>
         </div>
 
-         <div class="lg:text-center">
-          <h2 class="text-base text-indigo-600 font-semibold tracking-wide uppercase">
-            {{ challengeType }}
-          </h2>
-          <p class="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
-            {{ intent }}
-          </p>
-          <p class="mt-4 max-w-2xl text-xl text-gray-500 lg:mx-auto">
-            {{ description }}
-          </p>
+         <div class="text-center p-5">
+            <h2 class="text-base text-indigo-600 font-semibold tracking-wide uppercase">
+              {{ challengeType }}
+            </h2>
+            <p class="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+              {{ intent }}
+            </p>
+            <p class="mt-4 max-w-2xl text-xl text-gray-500 lg:mx-auto">
+              {{ description }}
+            </p>
         </div>
 
         <div v-show="challenge == 'challenge-file-choose'">
