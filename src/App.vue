@@ -1,9 +1,13 @@
 <template>
-  <div id="app">
-    <link href="/" rel="stylesheet">
-    <div class="flex justify-center content-center items-center w-full h-screen">
-      <div class="flex justify-center flex-col items-center	">
-      
+  <div id="app" class="bg-gray-50">
+    <AppsFlyerError v-if="errorCode == 'ERROR_CODE_APPSFLYER_GET_MISSING'" class="mx-4 mt-16 lg:mx-32 lg:mt-24"/>
+    <RedirectInsideFirstWeb  v-if="errorCode == 'REDIRECT_INSIDE'" class="mx-4 mt-16 lg:mx-32 lg:mt-24"/>
+    <TryRotateScreen v-if="challenge == 'challenge-orientation'" class="mx-4 mt-16 lg:mx-32 lg:mt-24"/>
+    <ChooseFile :onFileChoose="onFileChoose" v-if="challenge == 'challenge-file-choose'" class="mx-4 mt-16 lg:mx-32 lg:mt-24"/>
+    <CameraAndMic v-if="challenge == 'challenge-mic-view' || challenge == 'challenge-camera-view'" class="mx-4 mt-16 lg:mx-32 lg:mt-24"/>
+
+    <div class="flex justify-center content-center items-center w-full h-screen" v-if="challenge == 'challenge-back' || challenge == 'challenge-cookie' || challenge == 'challenge-done'">
+      <div class="flex justify-center flex-col items-center	">  
         <div class="mb-4"  v-if="fail">   
           <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
             <!-- Heroicon name: outline/exclamation -->
@@ -46,6 +50,12 @@
 </style>
 
 <script>
+import AppsFlyerError from "@/components/AppsFlyerError";
+import RedirectInsideFirstWeb from "@/components/RedirectInsideFirstWeb";
+import TryRotateScreen from "@/components/TryRotateScreen";
+import ChooseFile from "@/components/ChooseFile";
+import CameraAndMic from "@/components/CameraAndMic";
+
 const EXTERNAL_HOST = require("./conf").REDIRECT_URL
 
 const CHALLENGE_REDIRECT = "challenge-redirect"
@@ -53,14 +63,27 @@ const CHALLENGE_ORIENTATION = "challenge-orientation"
 const CHALLENGE_FILE_CHOOSE = "challenge-file-choose"
 const CHALLENGE_CAMERA_VIEW = "challenge-camera-view"
 const CHALLENGE_MIC_VIEW = "challenge-mic-view"
+
 const CHALLENGE_CAN_GO_BACK = "challenge-back"
 const CHALLENGE_COOKIE = "challenge-cookie"
 const CHALLENGE_DONE = "challenge-done"
 
+const ERROR_CODE_APPSFLYER_GET_MISSING = "ERROR_CODE_APPSFLYER_GET_MISSING"
+const REDIRECT_INSIDE = "REDIRECT_INSIDE"
+
+
 export default {
   name: 'App',
+  components: {
+    AppsFlyerError,
+    TryRotateScreen,
+    ChooseFile,
+    RedirectInsideFirstWeb,
+    CameraAndMic
+  },
   data() {
     return {
+      errorCode: null,
       challenge: CHALLENGE_REDIRECT,
       challengeSubState: 0,
       intent: "",
@@ -127,6 +150,14 @@ export default {
     }
   },
   methods: {
+    onFileChoose() {
+      if (this.challenge == CHALLENGE_FILE_CHOOSE) {
+         location.hash = "cameraView"
+        this.challenge = CHALLENGE_CAMERA_VIEW
+        this.nextChallenge()
+      }
+    },
+
     getOrientation() {
       return (screen.orientation || {}).type || screen.mozOrientation || screen.msOrientation;
     },
@@ -137,24 +168,18 @@ export default {
       switch (this.challenge) {
         case CHALLENGE_REDIRECT:
           if ((location.search == "" || location.search == "?")) {
-            this.fail = true
-            this.intent = "Не пришли данные от AppsFlyer при открытии ссылки"
-
-            setTimeout(() => {
-              location.href = EXTERNAL_HOST + "/" + location.search
-            }, 3000);
+            this.errorCode = ERROR_CODE_APPSFLYER_GET_MISSING
 
           } else if (location.pathname == "/" || location.pathname == "") {
             location.href = "/redirect" + location.search
 
           } else if (location.pathname == "/redirect") {
-            this.fail = true
-            this.intent = "Произошел редирект, но внутри сайта. В таком случае показывать WebView не надо"
+            this.errorCode = REDIRECT_INSIDE
 
             if (location.pathname != '/externalRedirect') {
               setTimeout(() => {
                 location.href = EXTERNAL_HOST + "/externalRedirect" + location.search
-              }, 3000);
+              }, 2000);
             }
 
           } else if (location.pathname == '/externalRedirect') {
@@ -165,23 +190,16 @@ export default {
 
           break;
 
-        case CHALLENGE_ORIENTATION:
-          this.intent = "Поверни экран телефона"
-
-          this.currentScreenOrientation = this.getOrientation() 
-
+        case CHALLENGE_ORIENTATION:          
           screen.orientation.addEventListener('change', () => {
 
             if (this.currentScreenOrientation != this.getOrientation()) {
-              this.intent = "Хорошо сработано, верни его в исходное положение"
-              this.challengeSubState = 1
-            } else {
               if (this.challengeSubState == 1) {
                 location.hash = "fileChoose"
                 this.challenge = CHALLENGE_FILE_CHOOSE
                 this.nextChallenge()
               } else {
-                this.intent = "Очень странно, экран повернулся, но не совсем корректно"
+                this.challengeSubState = 1
               }
             }
 
@@ -190,18 +208,6 @@ export default {
           break;
 
         case CHALLENGE_FILE_CHOOSE:
-          this.intent = "Попробуй выбрать файл"
-
-          this.$refs.fileSelector.addEventListener('change', (event) => {
-            const fileList = event.target.files;
-            
-            if (fileList) {
-              location.hash = "cameraView"
-              this.challenge = CHALLENGE_CAMERA_VIEW
-              this.nextChallenge()
-            }
-          });
-
           break;
 
         case CHALLENGE_CAMERA_VIEW:
@@ -238,7 +244,7 @@ export default {
                 this.challenge = CHALLENGE_MIC_VIEW
                 this.nextChallenge()
               });
-          }, 2000);
+          }, 1600);
 
           break;
 
@@ -260,7 +266,7 @@ export default {
                 this.challenge = CHALLENGE_CAN_GO_BACK
                 this.nextChallenge()
               });
-          }, 2000);
+          }, 1600);
 
 
           break;
@@ -317,7 +323,7 @@ export default {
       }
     }
   },
-  components: {},
+
   mounted() {
     if (document.cookie.match("username") != null) {
       location.href = EXTERNAL_HOST + "/externalRedirect#cookies" + location.search
