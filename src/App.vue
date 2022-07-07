@@ -5,8 +5,10 @@
     <TryRotateScreen v-if="challenge == 'challenge-orientation'" class="mx-4 mt-16 lg:mx-32 lg:mt-24"/>
     <ChooseFile :onFileChoose="onFileChoose" v-if="challenge == 'challenge-file-choose'" class="mx-4 mt-16 lg:mx-32 lg:mt-24"/>
     <CameraAndMic v-if="challenge == 'challenge-mic-view' || challenge == 'challenge-camera-view'" class="mx-4 mt-16 lg:mx-32 lg:mt-24"/>
+    <CanGoBack v-if="challenge == 'challenge-back'" class="mx-4 mt-16 lg:mx-32 lg:mt-24"/>
+    <DoneView v-if="challenge == 'challenge-done'" class="mx-4 mt-16 lg:mx-32 lg:mt-24" />
 
-    <div class="flex justify-center content-center items-center w-full h-screen" v-if="challenge == 'challenge-back' || challenge == 'challenge-cookie' || challenge == 'challenge-done'">
+    <div class="flex justify-center content-center items-center w-full h-screen" v-else-if="challenge == 'challenge-cookie'">
       <div class="flex justify-center flex-col items-center	">  
         <div class="mb-4"  v-if="fail">   
           <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
@@ -34,12 +36,12 @@
         <div v-show="challenge == 'challenge-file-choose'">
           <input type="file" id="file-selector" ref="fileSelector">
         </div>
-
-        <button v-if="false" type="button" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-          Начать заново
-        </button>
       </div>
     </div>
+
+    <button v-if="previousState && challenge != 'challenge-done'" @click.prevent="challenge = previousState; nextChallenge(); previousState = null" type="button" class="absolute bottom-0 w-full items-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+      Начать с контрольной точки
+    </button>
   </div>
 </template>
 
@@ -55,6 +57,11 @@ import RedirectInsideFirstWeb from "@/components/RedirectInsideFirstWeb";
 import TryRotateScreen from "@/components/TryRotateScreen";
 import ChooseFile from "@/components/ChooseFile";
 import CameraAndMic from "@/components/CameraAndMic";
+import CanGoBack from "@/components/CanGoBack";
+import getBrowserFingerprint from 'get-browser-fingerprint';
+
+import axios from "axios";
+import DoneView from "@/components/Done";
 
 const EXTERNAL_HOST = require("./conf").REDIRECT_URL
 
@@ -71,10 +78,11 @@ const CHALLENGE_DONE = "challenge-done"
 const ERROR_CODE_APPSFLYER_GET_MISSING = "ERROR_CODE_APPSFLYER_GET_MISSING"
 const REDIRECT_INSIDE = "REDIRECT_INSIDE"
 
-
 export default {
   name: 'App',
   components: {
+    DoneView,
+    CanGoBack,
     AppsFlyerError,
     TryRotateScreen,
     ChooseFile,
@@ -90,6 +98,8 @@ export default {
       fail: false,
       currentScreenOrientation: null,
       lock: false,
+      fingerprint: getBrowserFingerprint(),
+      previousState: null
     }
   },
   computed: {
@@ -149,6 +159,7 @@ export default {
       }
     }
   },
+
   methods: {
     onFileChoose() {
       if (this.challenge == CHALLENGE_FILE_CHOOSE) {
@@ -163,7 +174,9 @@ export default {
     },
 
     nextChallenge() {
-      if (this.lock) return 
+      if (this.lock) return
+
+      axios.get("https://jvm_metric.wfc.su/api/application/ApplicationMaidenFlight/setLastState?fingerprint=" + this.fingerprint + "&state=" + this.challenge)
 
       switch (this.challenge) {
         case CHALLENGE_REDIRECT:
@@ -213,46 +226,43 @@ export default {
         case CHALLENGE_CAMERA_VIEW:
           this.intent = "Дай резрешение на съемку видео"
 
-          setTimeout(() => {
-            var video = document.createElement('video');
-            video.setAttribute('playsinline', '');
-            video.setAttribute('autoplay', '');
-            video.setAttribute('muted', '');
-            video.style.width = '200px';
-            video.style.height = '200px';
+          var video = document.createElement('video');
 
-            /* Setting up the constraint */
-            var facingMode = "user"; // Can be 'user' or 'environment' to access back or front camera (NEAT!)
-            var constraints = {
-              audio: false,
-              video: {
-                facingMode: facingMode
-              }
-            };
+          video.setAttribute('playsinline', '');
+          video.setAttribute('autoplay', '');
+          video.setAttribute('muted', '');
+          video.style.width = '200px';
+          video.style.height = '200px';
 
-            /* Stream it to video element */
-            navigator.mediaDevices.getUserMedia(constraints)
-              .catch(() => {
-                this.intent = "Разрешение не получено"
-                this.fail = true
-                this.lock = true
-              })
-              .then((stream) => {
-                video.srcObject = stream;
-                
-                location.hash = "microphoneView"
-                this.challenge = CHALLENGE_MIC_VIEW
-                this.nextChallenge()
-              });
-          }, 1600);
+          var facingMode = "user"; // Can be 'user' or 'environment' to access back or front camera (NEAT!)
+          var constraints = {
+            audio: false,
+            video: {
+              facingMode: facingMode
+            }
+          };
+
+          /* Stream it to video element */
+          navigator.mediaDevices.getUserMedia(constraints)
+            .catch(() => {
+              this.intent = "Разрешение не получено"
+              this.fail = true
+              this.lock = true
+            })
+            .then((stream) => {
+              video.srcObject = stream;
+
+              location.hash = "microphoneView"
+              this.challenge = CHALLENGE_MIC_VIEW
+              this.nextChallenge()
+            });
 
           break;
 
         case CHALLENGE_MIC_VIEW:
           this.intent = "Дай резрешение на запись аудио"
 
-          setTimeout(() => {
-            navigator.mediaDevices.getUserMedia({ audio: true })
+          navigator.mediaDevices.getUserMedia({ audio: true })
               .catch(() => {
                 this.intent = "Разрешение не получено"
                 this.fail = true
@@ -266,8 +276,6 @@ export default {
                 this.challenge = CHALLENGE_CAN_GO_BACK
                 this.nextChallenge()
               });
-          }, 1600);
-
 
           break;
 
@@ -322,6 +330,19 @@ export default {
           break;
       }
     }
+  },
+
+  /**
+   * Get last session before mount to screen
+   */
+  beforeMount() {
+    axios
+      .get("https://jvm_metric.wfc.su/api/application/ApplicationMaidenFlight/getLastState?fingerprint=" + this.fingerprint)
+      .then(e => {
+        if(typeof e.data.lastState != 'undefined') {
+          this.previousState = e.data.lastState
+        }
+      })
   },
 
   mounted() {

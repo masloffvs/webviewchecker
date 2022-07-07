@@ -1,6 +1,6 @@
 <template>
 <div class="bg-white overflow-hidden shadow sm:rounded-lg">
-  <div class="px-4 py-5 sm:p-6 flex justify-center content-center items-center">
+  <div class="px-4 py-12 sm:p-6 flex justify-center content-center items-center">
     <div class="flex justify-center flex-col items-center p-4">
         <!-- Content goes here -->
         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" v-if="state == 1">
